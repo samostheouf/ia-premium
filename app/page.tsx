@@ -1,11 +1,58 @@
-import { PRICES, formatPrice } from '@/lib/stripe';
+import type { Metadata } from 'next'
 
-const TIERS = [
+import CheckoutButton from '@/app/components/CheckoutButton'
+import {
+  BASE_URL,
+  HOME_FAQS,
+  buildFaqPageJsonLd,
+  buildMetadata,
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+  serializeJsonLd,
+} from '@/lib/seo'
+
+export const metadata: Metadata = buildMetadata({
+  // `absolute` : la home ne doit PAS hériter du template '%s | IA Premium'
+  // du layout, sinon le titre deviendrait « ... | IA Premium | IA Premium ».
+  title: { absolute: 'IA Premium — Contenu Premium par Intelligence Artificielle' },
+  description:
+    "Générez des textes professionnels par IA : copywriting, emails marketing, landing pages, réseaux sociaux et storytelling. Qualité premium, paiement unique, sans abonnement.",
+  path: '/',
+})
+
+// Prix affichés — repris de lib/stripe.ts (constantes dupliquées côté serveur
+// pour ne pas embarquer le SDK Stripe dans le bundle).
+const PRICES = {
+  unit: { amount: 4990 },
+  pack: { amount: 19990 },
+  coffret: { amount: 49990 },
+} as const;
+
+type Variant = keyof typeof PRICES;
+
+function formatPrice(amountCents: number): string {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+  }).format(amountCents / 100);
+}
+
+const TIERS: {
+  id: Variant;
+  label: string;
+  price: string;
+  description: string;
+  features: string[];
+  cta: string;
+  icon: string;
+  highlighted: boolean;
+}[] = [
   {
     id: 'unit',
     label: 'Contenu Premium — Accès unitaire',
     price: formatPrice(PRICES.unit.amount),
-    description: 'Accès illimité au moteur de gèneiration de contenu premium. Idéal pour les professionnels et créateurs.',
+    description: 'Accès illimité au moteur de génération de contenu premium. Idéal pour les professionnels et créateurs.',
     features: [
       'Génération illimitée',
       'Tous les formats de sortie',
@@ -81,9 +128,21 @@ const FEATURES = [
   },
 ];
 
+// ─── Données structurées (Organization + WebSite + FAQPage) ──────────────────
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [buildOrganizationJsonLd(), buildWebSiteJsonLd(), buildFaqPageJsonLd(HOME_FAQS)],
+};
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        // Contenu statique issu de lib/seo.ts — aucune donnée utilisateur.
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+      />
+
       {/* HERO */}
       <section className="relative overflow-hidden px-4 pt-24 pb-16 sm:px-6 lg:px-8 premium-bg-gradient">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.25)_0%,_transparent_50%)] pointer-events-none" />
@@ -113,7 +172,7 @@ export default function Home() {
       </section>
 
       {/* PRICING */}
-      <section className="px-4 sm:px-6 lg:px-8 pb-16">
+      <section id="tarifs" className="px-4 sm:px-6 lg:px-8 pb-16 scroll-mt-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-black" style={{ color: '#1e1b4b' }}>Trois niveaux de premium</h2>
@@ -157,7 +216,7 @@ export default function Home() {
                   ))}
                 </ul>
 
-                <BuyButton variant={tier.id} className="w-full" />
+                <CheckoutButton variant={tier.id} label={tier.cta} className="w-full" />
               </div>
             ))}
           </div>
@@ -183,6 +242,31 @@ export default function Home() {
         </div>
       </section>
 
+      {/* FAQ — le contenu visible correspond au JSON-LD FAQPage */}
+      <section id="faq" className="px-4 sm:px-6 lg:px-8 pb-20 scroll-mt-24">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl font-black text-center mb-10" style={{ color: '#1e1b4b' }}>
+            Questions fréquentes
+          </h2>
+          <div className="space-y-3">
+            {HOME_FAQS.map((faq) => (
+              <details
+                key={faq.question}
+                className="group rounded-xl border border-gray-200 bg-white px-5 py-4 hover:border-indigo-200 transition-colors"
+              >
+                <summary className="cursor-pointer font-semibold list-none flex items-center justify-between gap-4" style={{ color: '#1e1b4b' }}>
+                  {faq.question}
+                  <span className="text-indigo-500 transition-transform group-open:rotate-45 text-xl leading-none" aria-hidden="true">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FOOTER */}
       <footer className="px-4 sm:px-6 lg:px-8 py-8 border-t" style={{ borderColor: '#e5e7eb', backgroundColor: '#fff' }}>
         <div className="max-w-5xl mx-auto text-center text-sm" style={{ color: '#9ca3af' }}>
@@ -190,47 +274,5 @@ export default function Home() {
         </div>
       </footer>
     </main>
-  );
-}
-
-function BuyButton({ variant, className = '' }: { variant: 'unit' | 'pack' | 'coffret'; className?: string }) {
-  const handleClick = async () => {
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variant }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Impossible de créer le paiement. Réessaie.');
-      }
-    } catch {
-      alert('Erreur réseau. Réessaie.');
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      className={`text-white font-bold px-6 py-3 rounded-xl text-base transition-all w-full ${className}`}
-      style={{
-        background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-      }}
-      onMouseOver={(e) => {
-        e.currentTarget.style.background = 'linear-gradient(135deg, #4338ca 0%, #4f46e5 100%)';
-        e.currentTarget.style.transform = 'translateY(-1px)';
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.4)';
-      }}
-      onMouseOut={(e) => {
-        e.currentTarget.style.background = 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)';
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
-    >
-      {TIERS.find((t) => t.id === variant)?.cta}
-    </button>
   );
 }

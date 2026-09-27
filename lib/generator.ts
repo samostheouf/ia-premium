@@ -132,7 +132,7 @@ class PremiumContentModel {
       // Simuler un délai minimal pour que le callback soit visible en UX
       accumulated += s.weight;
       progress({ ...s, weight: accumulated });
-      // pause microscopique non 블로quante — la vraie implémentation ne pause pas
+      // pause microscopique non bloquante — la vraie implémentation ne pause pas
     }
 
     const template = TEMPLATES[category];

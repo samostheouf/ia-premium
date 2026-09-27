@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getStripeClient, isStripeConfigured, PRICES } from '@/lib/stripe'
+import { createLogger, resolveRequestId } from '@/lib/observability'
 
 // ─── GET /api/checkout/session ────────────────────────────────────────────────
 // Récupère les détails d'une session Stripe à partir de son ID.
 // Utilisé par /checkout/success/page.tsx pour afficher les détails de l'achat.
 
 export async function GET(request: NextRequest) {
+  const log = createLogger(resolveRequestId(request.headers.get('x-request-id')))
   const { searchParams } = new URL(request.url)
   const sessionId = searchParams.get('session_id')
 
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   // Vérifier que Stripe est configuré
   if (!isStripeConfigured()) {
-    console.error('[checkout/session] STRIPE_SECRET_KEY manquante')
+    log.warn('checkout.session.stripe_not_configured', { endpoint: '/api/checkout/session' })
     return NextResponse.json(
       {
         error: 'Service de paiement non configuré.',
@@ -48,14 +50,35 @@ export async function GET(request: NextRequest) {
       session.payment_status === 'authorized'
 
     // Construction de la réponse
-    const lineItems =
-      session.amount_total && session.lines
-        ? session.lines.data.map((line) => ({
-            name: line.description || line.price?.product?.name || 'Produit',
+    // `lines` n'existe pas sur une Checkout Session : les articles sont dans
+    // `line_items`, qui doit être récupéré via l'API avec expand.
+    let lineItems: Array<{ name: string; amount: number; quantity: number }> = []
+
+    if (session.amount_total) {
+      try {
+        const full = await stripe.checkout.sessions.retrieve(session.id, {
+          expand: ['line_items.data.price.product'],
+        })
+        const items = full.line_items?.data ?? []
+        lineItems = items.map((line) => {
+          const product = line.price?.product
+          // `product` peut être un Product supprimé (DeletedProduct) : on ne lit
+          // `name` que sur un vrai Product.
+          const productName =
+            typeof product === 'object' && product !== null && 'name' in product
+              ? (product.name as string)
+              : null
+          return {
+            name: line.description || productName || 'Produit',
             amount: line.amount_total ? line.amount_total / 100 : 0,
             quantity: line.quantity || 1,
-          }))
-        : []
+          }
+        })
+      } catch (err) {
+        // Non bloquant : on renvoie la session sans le détail des articles.
+        console.error('[checkout/session] line_items indisponibles:', err)
+      }
+    }
 
     return NextResponse.json({
       sessionId: session.id,
@@ -71,7 +94,7 @@ export async function GET(request: NextRequest) {
       url: session.url,
     })
   } catch (err) {
-    console.error('[checkout/session] Erreur lors de la récupération:', err)
+    log.error('checkout.session.retrieve_error', { sessionId, err })
     return NextResponse.json(
       {
         error: 'Impossible de récupérer la session',

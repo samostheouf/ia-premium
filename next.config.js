@@ -16,8 +16,15 @@ const securityHeaders = [
 const nextConfig = {
   compress: true,
   poweredByHeader: false,
+  // Termux (android/arm64) n'a pas de binaire SWC natif : on force le binding
+  // WASM pour permettre le build local. Ignoré sur Vercel (linux/x64 natif).
+  experimental: {
+    useWasmBinary: true,
+  },
   typescript: {
-    ignoreBuildErrors: true,
+    // Le typecheck est propre : on ne masque plus aucune erreur.
+    // Garde-fou seulement si une dépendance externe casse le build.
+    ignoreBuildErrors: false,
   },
   images: {
     remotePatterns: [

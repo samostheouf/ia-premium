@@ -38,7 +38,7 @@ function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY manquante — impossible d\'initialiser Stripe')
     }
     stripeInstance = new Stripe(key, {
-      apiVersion: '2024-06-20',
+      apiVersion: '2026-08-26.dahlia',
       typescript: true,
     })
   }

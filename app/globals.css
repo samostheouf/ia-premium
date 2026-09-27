@@ -2,46 +2,382 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-inter: 'Inter', system-ui, sans-serif;
+/* ═══════════════════════════════════════════════════════════════════════════
+   ia-premium — Design system
+   Palette indigo/purple, thème sombre premium, typographie Inter.
+   Syntaxe Tailwind v3 (@tailwind base/components/utilities).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  /* ── Variables de la palette (source de vérité du thème) ────────────────── */
+  :root {
+    /* Indigo — couleur primaire */
+    --color-premium-50: #eef2ff;
+    --color-premium-100: #e0e7ff;
+    --color-premium-200: #c7d2fe;
+    --color-premium-300: #a5b4fc;
+    --color-premium-400: #818cf8;
+    --color-premium-500: #6366f1;
+    --color-premium-600: #4f46e5;
+    --color-premium-700: #4338ca;
+    --color-premium-800: #3730a3;
+    --color-premium-900: #312e81;
+    --color-premium-950: #1e1b4b;
+
+    /* Purple — couleur d'accent */
+    --color-accent-400: #c084fc;
+    --color-accent-500: #a855f7;
+    --color-accent-600: #9333ea;
+
+    /* Surfaces (thème sombre) */
+    --color-surface: #0b0a1f;
+    --color-surface-raised: #141233;
+    --color-surface-overlay: #1c1a3d;
+    --color-border-subtle: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(255, 255, 255, 0.16);
+
+    /* Texte */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #c7d2fe;
+    --color-text-muted: #a5b4fc;
+
+    /* Sémantique */
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+    --color-info: #60a5fa;
+
+    /* Dégradés */
+    --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+    --gradient-brand: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+    --gradient-accent: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    --gradient-text: linear-gradient(
+      100deg,
+      #a5b4fc 0%,
+      #c084fc 45%,
+      #f0abfc 100%
+    );
+
+    /* Typographie */
+    --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system,
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, monospace;
+
+    /* Ombres */
+    --shadow-glow-indigo: 0 0 40px -12px rgba(99, 102, 241, 0.55);
+    --shadow-glow-purple: 0 0 40px -12px rgba(168, 85, 247, 0.5);
+    --shadow-card: 0 18px 40px -24px rgba(2, 6, 23, 0.9);
+
+    /* Divers */
+    --radius-card: 1rem;
+    --header-height: 4rem;
+    --transition-fast: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── Base document ──────────────────────────────────────────────────────── */
+  html {
+    scroll-behavior: smooth;
+    /* Décalage pour les ancres sous l'en-tête sticky */
+    scroll-padding-top: calc(var(--header-height) + 1.5rem);
+    -webkit-text-size-adjust: 100%;
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-inter);
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Empêche le débordement horizontal des dégradés/animations */
+  body {
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* ── Focus visible (accessibilité clavier) ──────────────────────────────── */
+  :focus-visible {
+    outline: 2px solid var(--color-premium-400);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  /* Ne pas afficher d'anneau pour les clics souris, mais le garder au clavier */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* ── Sélection de texte ─────────────────────────────────────────────────── */
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.4);
+    color: #ffffff;
+    text-shadow: none;
+  }
+
+  ::-moz-selection {
+    background-color: rgba(99, 102, 241, 0.4);
+    color: #ffffff;
+  }
+
+  /* ── Scrollbar personnalisée ─────────────────────────────────────────────── */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.45) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(99, 102, 241, 0.35);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(99, 102, 241, 0.6);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* ── Accessibilité : lien d'évitement clavier ───────────────────────────── */
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -100%;
+    z-index: 100;
+    border-radius: 0.5rem;
+    background-color: var(--color-premium-600);
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #ffffff;
+    transition: top var(--transition-fast);
+  }
+
+  .skip-link:focus {
+    top: 1rem;
+  }
 }
 
-body {
-  font-family: var(--font-inter);
+@layer components {
+  /* ── Dégradés premium ───────────────────────────────────────────────────── */
+
+  /* Nom historique conservé : utilisé par app/page.tsx */
+  .premium-bg-gradient,
+  .bg-premium-gradient {
+    background: var(--gradient-brand);
+  }
+
+  .premium-accent-gradient {
+    background: var(--gradient-accent);
+  }
+
+  /* Lueur radiale indigo, à superposer en absolu pour les héros */
+  .premium-glow {
+    background-image: radial-gradient(
+      ellipse at top right,
+      rgba(99, 102, 241, 0.25) 0%,
+      transparent 55%
+    );
+  }
+
+  .premium-glow-purple {
+    background-image: radial-gradient(
+      ellipse at bottom left,
+      rgba(168, 85, 247, 0.22) 0%,
+      transparent 55%
+    );
+  }
+
+  /* Trait lumineux horizontal (bords de section) */
+  .premium-hairline {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(99, 102, 241, 0.5),
+      transparent
+    );
+  }
+
+  .text-premium-accent {
+    color: var(--color-premium-400);
+  }
+
+  /* Texte en dégradé (titres de héros) */
+  .text-gradient-premium {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* Évite le rogue de la boîte de ligne (descendantes accentuées) */
+    padding-bottom: 0.08em;
+  }
+
+  /* ── Boutons ────────────────────────────────────────────────────────────── */
+
+  .btn-premium {
+    background: var(--gradient-primary);
+    color: #ffffff;
+    font-weight: 600;
+    transition:
+      background var(--transition-fast),
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .btn-premium:hover:not(:disabled) {
+    background: var(--gradient-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+
+  .btn-premium:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-premium:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Variante fantôme pour les surfaces sombres */
+  .btn-ghost {
+    border: 1px solid var(--color-border-strong);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    transition:
+      background-color var(--transition-fast),
+      border-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(165, 180, 252, 0.4);
+    color: #ffffff;
+  }
+
+  /* ── Surfaces ───────────────────────────────────────────────────────────── */
+
+  .card-premium {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-card);
+    background-color: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-premium-hover {
+    transition:
+      transform var(--transition-base),
+      border-color var(--transition-base),
+      box-shadow var(--transition-base);
+  }
+
+  .card-premium-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 24px 48px -24px rgba(99, 102, 241, 0.45);
+  }
+
+  /* ── Utilitaires de mise en page ────────────────────────────────────────── */
+
+  .container-premium {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 80rem;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-premium {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-premium {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Lien sous-ligné animé, pour les liens de navigation au survol */
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-repeat: no-repeat;
+    background-position: left 100%;
+    transition: background-size var(--transition-fast);
+  }
+
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
+/* ═══════════════════════════════════════════════════════════════════════════
+   Accessibilité — respect des préférences système
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Neutralise les transformations issues des classes hover/translate */
+  .btn-premium:hover:not(:disabled),
+  .card-premium-hover:hover {
+    transform: none;
+  }
 }
 
-/* Custom focus ring */
-*:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+/* Sous contraste élevé : on renforce les bordures des surfaces */
+@media (prefers-contrast: more) {
+  :root {
+    --color-border-subtle: rgba(255, 255, 255, 0.35);
+    --color-border-strong: rgba(255, 255, 255, 0.6);
+  }
 
-/* Premium gradient accents */
-.bg-premium-gradient {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
-}
-
-.text-premium-accent {
-  color: #818cf8;
-}
-
-.btn-premium {
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  transition: all 0.2s ease;
-}
-
-.btn-premium:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-}
-
-.btn-premium:active {
-  transform: translateY(0);
+  ::selection {
+    background-color: var(--color-premium-500);
+  }
 }

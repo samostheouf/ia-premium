@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { getStripeClient, isStripeConfigured } from '@/lib/stripe'
 
 // ─── Page de succès après paiement Stripe ─────────────────────────────────────
@@ -11,8 +11,10 @@ export default async function CheckoutSuccessPage({
   const params = await searchParams
   const sessionId = params.session_id
 
+  // Arrivée sans session (lien direct, session expirée, refresh perdu) : on
+  // renvoie l'utilisateur vers l'accueil plutôt que d'afficher un 404 froid.
   if (!sessionId) {
-    notFound()
+    redirect('/?paiement=incomplet')
   }
 
   // Récupérer les détails de la session Stripe
@@ -20,7 +22,9 @@ export default async function CheckoutSuccessPage({
     id: string
     payment_status: string
     amount_total: number | null
-    currency: string
+    // Stripe renvoie `currency: string | null` — on aligne la déclaration sur le
+    // type réel plutôt que de forcer un cast non sûr.
+    currency: string | null
     customer_email: string | null
     metadata: Record<string, string> | null
     created: number | null

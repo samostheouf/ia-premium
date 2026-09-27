@@ -5,7 +5,7 @@ function getStripe(): Stripe {
     throw new Error('STRIPE_SECRET_KEY manquante');
   }
   return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-06-20',
+    apiVersion: '2026-08-26.dahlia',
     typescript: true,
   });
 }

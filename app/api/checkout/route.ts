@@ -8,6 +8,7 @@ import {
   isStripeConfigured,
 } from '@/lib/stripe'
 import { logSale } from '@/lib/analytics'
+import { createLogger, resolveRequestId } from '@/lib/observability'
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -26,9 +27,11 @@ interface CheckoutRequest {
 // ─── POST /api/checkout ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const log = createLogger(resolveRequestId(request.headers.get('x-request-id')))
+
   // Vérifier configuration Stripe
   if (!isStripeConfigured()) {
-    console.error('[checkout] STRIPE_SECRET_KEY manquante')
+    log.warn('checkout.stripe_not_configured', { endpoint: '/api/checkout' })
     return NextResponse.json(
       {
         error:
@@ -113,9 +116,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log(
-      `[checkout] Session créée → variant:${variant} session:${session.id} amount:${price.amount / 100}€ email:${customerEmail || '—'}`,
-    )
+    // L'email client est masqué automatiquement par le sanitizer.
+    log.info('checkout.session_created', {
+      variant,
+      sessionId: session.id,
+      amountCents: price.amount,
+      currency: 'eur',
+      customerEmail: customerEmail,
+      source: metadata.source || 'buy-button',
+    })
 
     return NextResponse.json({
       url: session.url,
@@ -124,7 +133,7 @@ export async function POST(request: NextRequest) {
       currency: 'eur',
     })
   } catch (err) {
-    console.error('[checkout] Erreur Stripe :', err)
+    log.error('checkout.stripe_error', { variant, err })
     return NextResponse.json(
       {
         error: 'Erreur lors de la création de la commande',

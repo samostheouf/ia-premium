@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateWithProgress, type GenerationResult, type GenerationOptions } from "@/lib/generator";
 import type { ContentCategory, ContentPersonality, OutputFormat } from "@/lib/generator";
+import { createLogger, resolveRequestId } from "@/lib/observability";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
-function validateOptions(raw: Record<string, unknown>): raw is GenerationOptions & { format: OutputFormat } {
+// Retourne un simple booléen : un type predicate ne peut pas être plus spécifique
+// que `Record<string, unknown>`, qui est le type d'entrée. Le cast est fait
+// déjà au moment de la déstructuration, après validation.
+function validateOptions(raw: Record<string, unknown>): boolean {
   if (!raw.category || !raw.prompt) {
     return false;
   }
@@ -43,6 +47,8 @@ function validateOptions(raw: Record<string, unknown>): raw is GenerationOptions
 // ─── Route POST ──────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const log = createLogger(resolveRequestId(request.headers.get("x-request-id")));
+
   let body: Record<string, unknown>;
 
   try {
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
     targetAudience = "",
     lengthWords = 200,
     personality = "direct",
-  } = body as GenerationOptions & { format: OutputFormat };
+  } = body as unknown as GenerationOptions & { format: OutputFormat };
 
   // Sauvegarder le callback de progression dans les logs serveur (optionnel)
   const progressSteps: { stage: number; label: string; weight: number }[] = [];
@@ -92,6 +98,14 @@ export async function POST(request: NextRequest) {
         progressSteps.push({ stage: step.stage, label: step.label, weight: step.weight });
       },
     );
+
+    log.info("generate.success", {
+      generationId: result.id,
+      category: result.category,
+      format: result.format,
+      outputChars: result.content.length,
+      tokensOutput: result.usage.tokensOutput,
+    });
 
     // Retourner le contenu + métadonnées + steps de progression
     return NextResponse.json({
@@ -113,7 +127,7 @@ export async function POST(request: NextRequest) {
       progress: progressSteps,
     });
   } catch (err) {
-    console.error("[api/generate] Erreur de génération:", err);
+    log.error("generate.error", { err });
     return NextResponse.json(
       {
         error: "Erreur lors de la génération du contenu",
