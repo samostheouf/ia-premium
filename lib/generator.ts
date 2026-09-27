@@ -241,14 +241,14 @@ class PremiumContentModel {
       length: number;
       personality: ContentPersonality;
     },
-  ): { content: string; structure: string[] } {
+  ): { content: string; structure: TemplateSection[] } {
     const p = ctx.personality;
     const structure = template.structure;
 
     // Construction d'un contenu cohérent à partir de la structure
     // et du brief. Chaque section est rendue avec le ton et l'intention.
     const sections: string[] = structure.map((section, idx) => {
-      const sectionContent = this.renderSection(section, ctx, idx);
+      const sectionContent = this.renderSection(section, ctx, idx, structure.length);
       return sectionContent;
     });
 
@@ -270,12 +270,13 @@ class PremiumContentModel {
       personality: ContentPersonality;
     },
     idx: number,
+    totalSections: number,
   ): string {
     // Pour les vraies templates, cette méthode serait déléguée au LLM.
     // Ici, générer du contenu premium crédible à partir des variables.
     const topic = this.extractTopic(ctx.prompt);
     const isFirst = idx === 0;
-    const isLast = idx === section.structure.length - 1;
+    const isLast = idx === totalSections - 1;
 
     return section.render(this, {
       topic,
@@ -359,7 +360,7 @@ class PremiumContentModel {
           "C'est le moment de transformer cette idée en action.",
           "La question n'est pas de savoir si, mais comment.",
         ];
-        const pick = ctns[Math.floor(Math.random() * ctns.length)];
+        const pick = ctas[Math.floor(Math.random() * ctas.length)];
         return ` ${pick}`;
       });
     }

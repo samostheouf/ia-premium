@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import { PRICES, type Variant, formatPrice } from '@/lib/stripe'
 
 interface BuyButtonProps {
@@ -27,7 +30,7 @@ const VARIANT_BENEFITS: Record<Variant, string[]> = {
   ],
   pack: [
     '5 crédits de génération premium',
-    'Mêmes modèles que l'accès unitaire',
+    'Mêmes modèles que l\'accès unitaire',
     'Idéal pour tester sans engagement',
   ],
   coffret: [
@@ -189,7 +192,7 @@ export default function BuyButton({
         className={`relative flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white transition-all duration-200 overflow-hidden ${
           success
             ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 cursor-default'
-            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:scale-[0.98]"
+            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:scale-[0.98]'
         } disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {success ? (

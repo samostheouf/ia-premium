@@ -4,7 +4,7 @@ import type { ContentCategory, ContentPersonality, OutputFormat } from "@/lib/ge
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
-function validateOptions(raw: Record<string, unknown>): options is GenerationOptions & { format: OutputFormat } {
+function validateOptions(raw: Record<string, unknown>): raw is GenerationOptions & { format: OutputFormat } {
   if (!raw.category || !raw.prompt) {
     return false;
   }
