@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateWithProgress, type GenerationResult, type GenerationOptions } from "@/lib/generator";
+import { type GenerationResult, type GenerationOptions } from "@/lib/generator";
+// Moteur enrichi : bascule sur un vrai modèle si une clé API est configurée,
+// sinon conserve le générateur à templates. Même contrat d'appel.
+import { generateWithEngine } from "@/lib/engine";
 import type { ContentCategory, ContentPersonality, OutputFormat } from "@/lib/generator";
 import { createLogger, resolveRequestId } from "@/lib/observability";
 
@@ -84,7 +87,7 @@ export async function POST(request: NextRequest) {
   const progressSteps: { stage: number; label: string; weight: number }[] = [];
 
   try {
-    const result = await generateWithProgress(
+    const result = await generateWithEngine(
       {
         category: category as ContentCategory,
         prompt: prompt as string,
