@@ -5,11 +5,18 @@
 // brancher un vrai modèle, et sera activé dès qu'une clé API sera présente.
 //
 // POUR L'ACTIVER :
-//   1. Ajouter la clé dans l'environnement Vercel :
-//        OPENAI_API_KEY=sk-...        (ou ANTHROPIC_API_KEY=sk-ant-...)
+//   1. Ajouter UNE clé dans l'environnement Vercel (par ordre de préférence) :
+//        XAI_API_KEY=xai-...          → Grok       (recommandé : crédits)
+//        OPENAI_API_KEY=sk-...        → GPT-4o mini
+//        ANTHROPIC_API_KEY=sk-ant-... → Claude Haiku
 //      Jamais dans le dépôt, jamais dans un NEXT_PUBLIC_*.
 //   2. Le moteur bascule automatiquement : voir `isLlmConfigured()` plus bas.
+//      Si plusieurs clés sont présentes, xAI est prioritaire.
 //   3. Recharger les variables : npx vercel env pull
+//
+// ⚠️ Une clé collée en clair dans une conversation est compromise. La révoquer
+// et la régénérer avant tout déploiement. La poser via une commande qui
+// masque la saisie (`npx vercel env add XAI_API_KEY production` en mode caché).
 //
 // Le reste de l'architecture (catégories, ton, longueur, format) est déjà en
 // place dans `lib/generator.ts` et n'a pas besoin d'être modifié.
@@ -23,12 +30,13 @@ export interface LlmMessage {
 
 export interface LlmResult {
   content: string
-  provider: 'openai' | 'anthropic' | 'template'
+  provider: 'xai' | 'openai' | 'anthropic' | 'template'
   model: string
   inputTokens: number
   outputTokens: number
 }
 
+const XAI_MODEL = 'grok-4.3'  // flagship : le meilleur taux d'hallucination documenté
 const OPENAI_MODEL = 'gpt-4o-mini'
 const ANTHROPIC_MODEL = 'claude-3-5-haiku-latest'
 
@@ -38,7 +46,11 @@ const ANTHROPIC_MODEL = 'claude-3-5-haiku-latest'
  * sinon conserve le rendu par templates.
  */
 export function isLlmConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)
+  return Boolean(
+    process.env.XAI_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      process.env.ANTHROPIC_API_KEY
+  )
 }
 
 /** Requête normalisée vers l'un ou l'autre fournisseur. */
@@ -50,6 +62,26 @@ interface LlmRequest {
 }
 
 function buildBody(messages: LlmMessage[], maxTokens: number): LlmRequest | null {
+  // xAI en priorité : c'est le fournisseur avec lequel le compte est configuré,
+  // et son API est compatible OpenAI (même corps, endpoint différent).
+  const xaiKey = process.env.XAI_API_KEY
+  if (xaiKey) {
+    return {
+      url: 'https://api.x.ai/v1/chat/completions',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${xaiKey}`,
+      },
+      body: {
+        model: XAI_MODEL,
+        messages,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      },
+      model: XAI_MODEL,
+    }
+  }
+
   const openaiKey = process.env.OPENAI_API_KEY
   if (openaiKey) {
     return {
@@ -126,10 +158,10 @@ export async function callLlm(
 
   const data = await res.json()
 
-  if (req.model.startsWith('gpt')) {
+  if (req.model.startsWith('gpt') || req.model.startsWith('grok')) {
     return {
       content: data.choices?.[0]?.message?.content ?? '',
-      provider: 'openai',
+      provider: req.model.startsWith('grok') ? 'xai' : 'openai',
       model: req.model,
       inputTokens: data.usage?.prompt_tokens ?? 0,
       outputTokens: data.usage?.completion_tokens ?? 0,
