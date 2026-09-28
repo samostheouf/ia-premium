@@ -36,7 +36,9 @@ export interface LlmResult {
   outputTokens: number
 }
 
-const XAI_MODEL = 'grok-4.3'  // flagship : le meilleur taux d'hallucination documenté
+// `grok-4.7` n'existe pas : c'est un numéro erroné recopié depuis un exemple de
+// la doc. La référence officielle courante est grok-4.6.
+const XAI_MODEL = 'grok-4.6'
 const OPENAI_MODEL = 'gpt-4o-mini'
 const ANTHROPIC_MODEL = 'claude-3-5-haiku-latest'
 
@@ -59,6 +61,8 @@ interface LlmRequest {
   headers: Record<string, string>
   body: Record<string, unknown>
   model: string
+  /** Forme de la réponse : xAI Responses API ou Chat Completions. */
+  api: 'responses' | 'chat'
 }
 
 function buildBody(messages: LlmMessage[], maxTokens: number): LlmRequest | null {
@@ -67,18 +71,24 @@ function buildBody(messages: LlmMessage[], maxTokens: number): LlmRequest | null
   const xaiKey = process.env.XAI_API_KEY
   if (xaiKey) {
     return {
-      url: 'https://api.x.ai/v1/chat/completions',
+      // API Responses : endpoint recommandé par xAI, compatible OpenAI.
+      // `store: false` est OBLIGATOIRE ici : par défaut xAI conserve la
+      // conversation 30 jours sur ses serveurs. Un produit qui traite du
+      // contenu client ne doit pas laisser de copie chez le fournisseur.
+      url: 'https://api.x.ai/v1/responses',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${xaiKey}`,
       },
       body: {
         model: XAI_MODEL,
-        messages,
-        max_tokens: maxTokens,
+        input: messages,
+        max_output_tokens: maxTokens,
         temperature: 0.7,
+        store: false,
       },
       model: XAI_MODEL,
+      api: 'responses' as const,
     }
   }
 
@@ -97,6 +107,7 @@ function buildBody(messages: LlmMessage[], maxTokens: number): LlmRequest | null
         temperature: 0.7,
       },
       model: OPENAI_MODEL,
+      api: 'chat' as const,
     }
   }
 
@@ -119,6 +130,7 @@ function buildBody(messages: LlmMessage[], maxTokens: number): LlmRequest | null
         messages: rest.map((m) => ({ role: m.role, content: m.content })),
       },
       model: ANTHROPIC_MODEL,
+      api: 'chat' as const,
     }
   }
 
@@ -133,14 +145,9 @@ export async function callLlm(
   messages: LlmMessage[],
   maxTokens = 900
 ): Promise<LlmResult | null> {
-  // Union explicite : les deux branches ont des en-têtes différents, TS ne peut
-  // pas les unifier seul à partir de l'objet littéral.
-  const req: {
-    url: string
-    headers: Record<string, string>
-    body: Record<string, unknown>
-    model: string
-  } | null = buildBody(messages, maxTokens)
+  // `buildBody` renvoie déjà `LlmRequest | null` : on ne redéclare pas le type
+  // ici, sinon cette annotation locale masquerait le discriminant `api`.
+  const req = buildBody(messages, maxTokens)
   if (!req) return null
 
   const res = await fetch(req.url, {
@@ -158,10 +165,33 @@ export async function callLlm(
 
   const data = await res.json()
 
-  if (req.model.startsWith('gpt') || req.model.startsWith('grok')) {
+  // ─── API Responses (xAI) ───────────────────────────────────────────────────
+  // La réponse est un tableau `output` dont chaque bloc contient des
+  // `content` de type `output_text`. Il n'y a pas de `choices`.
+  if (req.api === 'responses') {
+    const blocks = Array.isArray(data.output) ? data.output : []
+    const text = blocks
+      .flatMap((b: { content?: unknown }) =>
+        Array.isArray(b.content) ? b.content : []
+      )
+      .filter((c: { type?: string }) => c?.type === 'output_text')
+      .map((c: { text?: string }) => c.text ?? '')
+      .join('')
+
+    return {
+      content: text,
+      provider: 'xai',
+      model: req.model,
+      inputTokens: data.usage?.input_tokens ?? 0,
+      outputTokens: data.usage?.output_tokens ?? 0,
+    }
+  }
+
+  // ─── Chat Completions (OpenAI) ─────────────────────────────────────────────
+  if (req.model.startsWith('gpt')) {
     return {
       content: data.choices?.[0]?.message?.content ?? '',
-      provider: req.model.startsWith('grok') ? 'xai' : 'openai',
+      provider: 'openai',
       model: req.model,
       inputTokens: data.usage?.prompt_tokens ?? 0,
       outputTokens: data.usage?.completion_tokens ?? 0,
